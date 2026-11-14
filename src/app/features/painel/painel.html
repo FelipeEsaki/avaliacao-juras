@@ -1,0 +1,98 @@
+<div class="app largo">
+  <header class="bar">
+    <div class="marca">
+      <img class="logo" src="logo-juras.png" alt="Logo Jura's" width="44" height="44" />
+      <h1>Avaliações do Jura's</h1>
+    </div>
+    <button type="button" class="out" (click)="sair()">Sair</button>
+  </header>
+  <main>
+    <div class="field">
+      <label for="periodo">Período</label>
+      <select id="periodo" (change)="mudarPeriodo($event)">
+        @for (periodo of periodos; track periodo.dias) {
+          <option [value]="periodo.dias" [selected]="periodo.dias === dias()">
+            {{ periodo.nome }}
+          </option>
+        }
+      </select>
+    </div>
+
+    @switch (estado()) {
+      @case ('carregando') {
+        <p class="vazio" role="status">Carregando avaliações...</p>
+      }
+      @case ('erro') {
+        <div class="err" role="alert">
+          <app-icone-alerta />
+          <span
+            >Não foi possível carregar as avaliações. Verifique sua conexão e tente de novo.</span
+          >
+        </div>
+        <button type="button" class="btn sec espaco-acima" (click)="carregar()">
+          Tentar novamente
+        </button>
+      }
+      @case ('pronto') {
+        <section aria-labelledby="titulo-medias">
+          <h3 id="titulo-medias">Médias por unidade</h3>
+          <div class="cards">
+            @for (media of resumo().medias; track media.unidadeId) {
+              <div class="card">
+                <div class="t">
+                  <span>{{ media.nome }}</span>
+                  <span class="q"
+                    >{{ media.quantidade }}
+                    {{ media.quantidade === 1 ? 'avaliação' : 'avaliações' }}</span
+                  >
+                </div>
+                <div class="row">
+                  <div class="m">
+                    <div class="l">Lanche</div>
+                    <div class="v">{{ formatarMedia(media.mediaLanche) }}</div>
+                  </div>
+                  <div class="m">
+                    <div class="l">Atendimento</div>
+                    <div class="v">{{ formatarMedia(media.mediaAtendimento) }}</div>
+                  </div>
+                </div>
+              </div>
+            } @empty {
+              <p class="vazio">Nenhuma unidade cadastrada.</p>
+            }
+          </div>
+        </section>
+
+        <section aria-labelledby="titulo-baixas">
+          <h3 id="titulo-baixas">Notas baixas <span class="q">(nota 1 ou 2)</span></h3>
+          @for (avaliacao of resumo().notasBaixas; track avaliacao.id) {
+            <article class="alertcard">
+              <span class="tag"><app-icone-alerta-branco /> Nota baixa</span>
+              <div class="meta">
+                <strong>{{ avaliacao.nomeUnidade }}</strong> · {{ nomesCanal[avaliacao.canal] }} ·
+                {{ formatarDataHora(avaliacao.criadoEm) }}<br />
+                @if (avaliacao.notaLanche <= notaBaixa) {
+                  <strong>Lanche {{ avaliacao.notaLanche }}</strong>
+                } @else {
+                  Lanche {{ avaliacao.notaLanche }}
+                }
+                ·
+                @if (avaliacao.notaAtendimento <= notaBaixa) {
+                  <strong>Atendimento {{ avaliacao.notaAtendimento }}</strong>
+                } @else {
+                  Atendimento {{ avaliacao.notaAtendimento }}
+                }
+                · {{ avaliacao.numeroPedido ? 'Pedido ' + avaliacao.numeroPedido : 'Sem pedido' }}
+              </div>
+              @if (avaliacao.comentario) {
+                <div class="quote">"{{ avaliacao.comentario }}"</div>
+              }
+            </article>
+          } @empty {
+            <p class="vazio">Nenhuma nota baixa no período.</p>
+          }
+        </section>
+      }
+    }
+  </main>
+</div>
