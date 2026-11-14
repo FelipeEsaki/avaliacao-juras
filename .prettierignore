@@ -1,0 +1,8 @@
+dist
+coverage
+qrcodes
+.angular
+node_modules
+src/environments/environment.ts
+package-lock.json
+*.md
