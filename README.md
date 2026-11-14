@@ -1,3 +1,109 @@
 # Avaliação Jura's
 
-Sistema de avaliação de satisfação para as lojas do Jura's. Em construção.
+Sistema de avaliação de satisfação para as lojas do Jura's (São José do Rio Preto, Bady Bassitt, José Bonifácio e Mirassol).
+
+O cliente lê um QR code na mesa, na embalagem ou no delivery, dá uma nota de 1 a 5 para o lanche e outra para o atendimento e, se quiser, deixa um comentário. Não precisa de cadastro e não pedimos dado pessoal. A gerência entra num painel com login e vê a média de cada unidade e a lista de notas baixas (1 ou 2) para agir rápido.
+
+Projeto da disciplina Projeto de Software (ADS, Cruzeiro do Sul), feito com o Jura's como parceiro.
+
+## Stack
+
+- Angular 22 (standalone, Signals e Signal Forms), TypeScript 6
+- Supabase: PostgreSQL, Auth e Row Level Security
+- Cloudflare Pages para hospedagem
+- Vitest para testes, GitHub Actions para CI
+
+## Telas
+
+| Rota | O que faz |
+| --- | --- |
+| `/avaliar?u=<unidade>&c=<canal>` | Formulário de avaliação. É para cá que o QR code aponta. `canal` é `mesa`, `embalagem` ou `delivery`. |
+| `/obrigado` | Confirmação com resumo das notas e convite opcional para avaliar no Google. |
+| `/login` | Login do gestor (carregado sob demanda). |
+| `/painel` | Médias por unidade e notas baixas, com filtro de 7, 30 ou 90 dias. Protegido por guard. |
+
+## Rodando local
+
+Precisa de Node 22.22+ ou 24.15+.
+
+```bash
+npm ci
+cp .env.example .env   # preencha com a URL e a chave anon do Supabase
+npm start              # http://localhost:4200/avaliar?u=1&c=mesa
+```
+
+O `src/environments/environment.ts` é gerado pelo `scripts/gerar-env.mjs` antes do `start`, do `build` e do `test`. Ele não vai para o Git.
+
+## Banco (Supabase)
+
+1. Crie o projeto no Supabase (região São Paulo).
+2. No SQL Editor, rode na ordem:
+   - `supabase/migrations/20261114120000_estrutura_inicial.sql`
+   - `supabase/migrations/20261114120100_seguranca_rls.sql`
+   - `supabase/seed.sql`
+3. Crie o acesso do gestor seguindo `supabase/criar-gestor.md`. O cadastro público fica desligado.
+
+Regras que ficam no banco, e não só na tela:
+
+- Nota só de 1 a 5, comentário até 500 caracteres, pedido só com números (até 10), canal só mesa, embalagem ou delivery.
+- O cliente anônimo só consegue inserir avaliação de unidade ativa, e só nas colunas que ele preenche. `id` e `criado_em` quem define é o banco.
+- O cliente anônimo não lê avaliação nenhuma. Só o gestor logado lê.
+- Ninguém altera ou apaga avaliação pela API.
+
+## Deploy (Cloudflare Pages)
+
+- Build command: `npm run build`
+- Output directory: `dist/avaliacao-juras/browser`
+- Variáveis: `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `NODE_VERSION=22`
+
+O arquivo `public/_headers` aplica a CSP e os outros cabeçalhos de segurança. A CSP só libera conexão com o próprio site e com o Supabase.
+
+## QR codes
+
+```bash
+npm run qrcodes -- https://endereco-publicado.pages.dev
+```
+
+Gera um SVG (para a gráfica) e um PNG de cada unidade e canal em `qrcodes/`. Os ids do script precisam bater com os da tabela `unidade`.
+
+## Testes
+
+```bash
+npm test                 # unitários e de integração
+npm run test:cobertura   # mesma coisa com relatório de cobertura em coverage/
+```
+
+- Unitários: modelo (validações e nota baixa), serviços, guard e formatação de data e média.
+- Integração: o app sobe com as rotas reais e um repositório em memória no lugar do Supabase (`src/testing/repositorio-falso.ts`). Cobre envio completo, QR inválido, erros de validação, falha de rede com nova tentativa, bloqueio de reenvio, login e painel.
+- Banco: `supabase/testes/rls.test.sql` roda as migrations num PostgreSQL limpo e tenta burlar as regras (nota 6, data falsa, ler avaliação sem login, apagar avaliação etc.). Tudo dentro de uma transação desfeita no final.
+
+O `SupabaseDadosRepository` não entra na cobertura do Vitest porque só fala com a API externa. Ele é coberto pelo teste do banco e pelo teste manual no ambiente publicado.
+
+## CI
+
+`.github/workflows/ci.yml` roda em todo push na `main` e em todo pull request:
+
+1. `npm ci`, checagem de formatação e `npm audit` das dependências de produção
+2. testes com cobertura
+3. build de produção (o orçamento do Angular falha o build acima de 1 MB inicial)
+4. em paralelo, sobe um PostgreSQL 16, roda migrations e seed e executa os testes de segurança do banco
+
+## Estrutura
+
+```
+src/app/
+  core/        modelo, serviços, guard e o repositório (único lugar que usa supabase-js)
+  features/    avaliar, obrigado, login, painel
+  shared/      topo e ícones
+src/testing/   repositório em memória e helper dos testes de integração
+supabase/      migrations, seed e testes do banco
+scripts/       geração do environment e dos QR codes
+```
+
+## Decisões e limitações
+
+- O supabase-js é carregado só quando precisa. O primeiro carregamento da tela do QR fica em torno de 83 KB comprimidos, o que conta no 4G dentro da loja.
+- O convite do Google aparece para todo mundo, não só para quem deu nota alta. Filtrar quem é convidado vai contra a política de avaliações do Google.
+- O bloqueio de reenvio (2 horas por unidade no mesmo aparelho) usa localStorage. Evita clique duplo e envio repetido na sequência, mas quem limpar o navegador consegue avaliar de novo. Para o volume das lojas isso foi aceito.
+- As médias são calculadas no navegador a partir das avaliações do período, paginando de 1000 em 1000. Para o volume atual funciona bem. Se crescer muito, o caminho é uma view agregada no banco.
+- O plano gratuito do Supabase pausa o projeto depois de 7 dias sem acesso e não tem backup para download.
