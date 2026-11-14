@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: App (formatação, audit, testes e build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instala dependências
+        run: npm ci
+
+      - name: Confere formatação
+        run: npm run formatar:checar
+
+      - name: Procura vulnerabilidade nas dependências de produção
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Testes unitários e de integração com cobertura
+        run: npm run test:cobertura
+
+      - name: Build de produção
+        run: npm run build
+
+      - name: Guarda o relatório de cobertura
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura
+          path: coverage/
+          retention-days: 14
+
+  banco:
+    name: Banco (migrations, RLS e CHECK)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Cria os papéis anon e authenticated do Supabase
+        run: psql -v ON_ERROR_STOP=1 -f supabase/testes/papeis-supabase.sql
+
+      - name: Roda as migrations
+        run: for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -f "$f"; done
+
+      - name: Roda o seed
+        run: psql -v ON_ERROR_STOP=1 -f supabase/seed.sql
+
+      - name: Testa as regras de segurança
+        run: psql -v ON_ERROR_STOP=1 -f supabase/testes/rls.test.sql
