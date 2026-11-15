@@ -22,6 +22,7 @@ Projeto da disciplina Projeto de Software (ADS, Cruzeiro do Sul), feito com o Ju
 | Rota | O que faz |
 | --- | --- |
 | `/avaliar?u=<unidade>&c=<canal>` | Formulário de avaliação. É para cá que o QR code aponta. `canal` é `mesa`, `embalagem` ou `delivery`. |
+| `/avaliar/<unidade>/<canal>` | Link curto, sem `&`, que redireciona para a rota acima. Serve para colar em lugares que escapam o `&` da URL. |
 | `/obrigado` | Confirmação com resumo das notas e convite opcional que abre direto a tela de avaliação da loja no Google. |
 | `/login` | Login do gestor (carregado sob demanda). |
 | `/painel` | Médias por unidade e notas baixas, com filtro de 7, 30 ou 90 dias. Protegido por guard. |
