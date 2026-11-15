@@ -18,7 +18,7 @@ Projeto da disciplina Projeto de Software (ADS, Cruzeiro do Sul), feito com o Ju
 | Rota | O que faz |
 | --- | --- |
 | `/avaliar?u=<unidade>&c=<canal>` | Formulário de avaliação. É para cá que o QR code aponta. `canal` é `mesa`, `embalagem` ou `delivery`. |
-| `/obrigado` | Confirmação com resumo das notas e convite opcional para avaliar no Google. |
+| `/obrigado` | Confirmação com resumo das notas e convite opcional que abre direto a tela de avaliação da loja no Google. |
 | `/login` | Login do gestor (carregado sob demanda). |
 | `/painel` | Médias por unidade e notas baixas, com filtro de 7, 30 ou 90 dias. Protegido por guard. |
 
@@ -40,6 +40,7 @@ O `src/environments/environment.ts` é gerado pelo `scripts/gerar-env.mjs` antes
 2. No SQL Editor, rode na ordem:
    - `supabase/migrations/20261114120000_estrutura_inicial.sql`
    - `supabase/migrations/20261114120100_seguranca_rls.sql`
+   - `supabase/migrations/20261115180000_links_avaliacao_google.sql`
    - `supabase/seed.sql`
 3. Crie o acesso do gestor seguindo `supabase/criar-gestor.md`. O cadastro público fica desligado.
 
@@ -75,9 +76,8 @@ npm run test:cobertura   # mesma coisa com relatório de cobertura em coverage/
 
 - Unitários: modelo (validações e nota baixa), serviços, guard e formatação de data e média.
 - Integração: o app sobe com as rotas reais e um repositório em memória no lugar do Supabase (`src/testing/repositorio-falso.ts`). Cobre envio completo, QR inválido, erros de validação, falha de rede com nova tentativa, bloqueio de reenvio, login e painel.
-- Banco: `supabase/testes/rls.test.sql` roda as migrations num PostgreSQL limpo e tenta burlar as regras (nota 6, data falsa, ler avaliação sem login, apagar avaliação etc.). Tudo dentro de uma transação desfeita no final.
-
-O `SupabaseDadosRepository` não entra na cobertura do Vitest porque só fala com a API externa. Ele é coberto pelo teste do banco e pelo teste manual no ambiente publicado.
+- Repositório Supabase: `supabase-dados.repository.spec.ts` usa um cliente falso para conferir as consultas (filtros, ordem, paginação de 1000 em 1000) e a nova tentativa quando o supabase-js falha ao carregar.
+- Banco: `supabase/testes/rls.test.sql` roda as migrations num PostgreSQL limpo e tenta burlar as regras (nota 6, data falsa, ler avaliação sem login, apagar avaliação etc.). `supabase/testes/dados.test.sql` confere que toda unidade ativa tem um link direto de avaliação no Google, tanto no banco novo quanto depois da migration aplicada em cima dos links antigos. Os dois rodam dentro de uma transação desfeita no final.
 
 ## CI
 
@@ -86,7 +86,7 @@ O `SupabaseDadosRepository` não entra na cobertura do Vitest porque só fala co
 1. `npm ci`, checagem de formatação e `npm audit` das dependências de produção
 2. testes com cobertura
 3. build de produção (o orçamento do Angular falha o build acima de 1 MB inicial)
-4. em paralelo, sobe um PostgreSQL 16, roda migrations e seed e executa os testes de segurança do banco
+4. em paralelo, sobe um PostgreSQL 16, roda migrations e seed e executa os testes de segurança e dos links do Google
 
 ## Estrutura
 
@@ -104,6 +104,7 @@ scripts/       geração do environment e dos QR codes
 
 - O supabase-js é carregado só quando precisa. O primeiro carregamento da tela do QR fica em torno de 83 KB comprimidos, o que conta no 4G dentro da loja.
 - O convite do Google aparece para todo mundo, não só para quem deu nota alta. Filtrar quem é convidado vai contra a política de avaliações do Google.
+- Página pública de avaliações ficou fora do MVP. Foi sugestão do parceiro na 1ª rodada de validação (deixar as avaliações visíveis, como no TripAdvisor). Publicar o que o cliente escreve exige autorização dele, moderação antes de ir ao ar e proteção contra avaliação falsa, já que não há login para avaliar. Para atender a necessidade agora, o convite do fim do formulário abre direto a tela de avaliação da loja no Google, onde quem procura o Jura's já lê as opiniões. A página própria fica para uma próxima versão.
 - O bloqueio de reenvio (2 horas por unidade no mesmo aparelho) usa localStorage. Evita clique duplo e envio repetido na sequência, mas quem limpar o navegador consegue avaliar de novo. Para o volume das lojas isso foi aceito.
 - As médias são calculadas no navegador a partir das avaliações do período, paginando de 1000 em 1000. Para o volume atual funciona bem. Se crescer muito, o caminho é uma view agregada no banco.
 - O plano gratuito do Supabase pausa o projeto depois de 7 dias sem acesso e não tem backup para download.
