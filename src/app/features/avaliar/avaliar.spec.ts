@@ -75,7 +75,8 @@ describe('Tela de avaliação (integração)', () => {
     expect(app.texto()).toContain('Lanche: 4 de 5');
     expect(app.texto()).toContain('Atendimento: 2 de 5');
     const google = app.tela().querySelector<HTMLAnchorElement>('a.btn')!;
-    expect(google.href).toBe('https://www.google.com/maps/rio-preto');
+    expect(google.href).toBe('https://search.google.com/local/writereview?placeid=rio-preto');
+    expect(app.texto()).toContain('onde outros clientes podem ler');
     expect(google.rel).toContain('noopener');
   });
 

@@ -7,10 +7,15 @@ export const UNIDADES_TESTE: Unidade[] = [
   {
     id: 1,
     nome: 'São José do Rio Preto',
-    linkGoogle: 'https://www.google.com/maps/rio-preto',
+    linkGoogle: 'https://search.google.com/local/writereview?placeid=rio-preto',
     ativa: true,
   },
-  { id: 2, nome: 'Bady Bassitt', linkGoogle: 'https://www.google.com/maps/bady', ativa: true },
+  {
+    id: 2,
+    nome: 'Bady Bassitt',
+    linkGoogle: 'https://search.google.com/local/writereview?placeid=bady',
+    ativa: true,
+  },
   { id: 3, nome: 'Mirassol', linkGoogle: null, ativa: false },
 ];
 
