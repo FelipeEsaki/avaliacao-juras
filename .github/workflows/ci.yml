@@ -80,3 +80,6 @@ jobs:
 
       - name: Testa as regras de segurança
         run: psql -v ON_ERROR_STOP=1 -f supabase/testes/rls.test.sql
+
+      - name: Confere os links de avaliação do Google
+        run: psql -v ON_ERROR_STOP=1 -f supabase/testes/dados.test.sql

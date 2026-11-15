@@ -58,7 +58,8 @@ export function lerResumo(estado: unknown): ResumoEnvio | null {
               Avaliar também no Google
             </a>
             <p class="note">
-              Opcional. Abre a página da Jura's {{ resumo.nomeUnidade }} no Google.
+              Opcional. Abre direto a avaliação da Jura's {{ resumo.nomeUnidade }} no Google, onde
+              outros clientes podem ler.
             </p>
           }
         }
