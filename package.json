@@ -12,7 +12,7 @@
     "pretest": "npm run env",
     "test": "ng test --watch=false",
     "qrcodes": "node scripts/gerar-qrcodes.mjs",
-    "test:cobertura": "npm run env && ng test --watch=false --coverage --coverage-reporters=text-summary --coverage-reporters=html --coverage-exclude=src/testing/**",
+    "test:cobertura": "npm run env && ng test --watch=false --coverage --coverage-reporters=text --coverage-reporters=text-summary --coverage-reporters=html --coverage-include='src/app/**/*.ts' --coverage-exclude='src/**/*.spec.ts'",
     "formatar": "prettier --write \"src/**/*.{ts,html,css}\" \"scripts/**/*.mjs\"",
     "formatar:checar": "prettier --check \"src/**/*.{ts,html,css}\" \"scripts/**/*.mjs\""
   },

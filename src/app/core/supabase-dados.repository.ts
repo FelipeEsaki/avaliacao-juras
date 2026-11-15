@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, InjectionToken, inject } from '@angular/core';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 import { AvaliacaoRegistrada, NovaAvaliacao } from './avaliacao.model';
@@ -44,25 +44,43 @@ const paraAvaliacao = (l: LinhaAvaliacao): AvaliacaoRegistrada => ({
   criadoEm: l.criado_em,
 });
 
+export type FabricaSupabase = () => Promise<SupabaseClient>;
+
+/**
+ * O supabase-js é carregado sob demanda. Assim o primeiro carregamento da tela
+ * do QR code fica leve, o que conta no 4G do cliente dentro da loja.
+ */
+export function criarClienteSupabase(): Promise<SupabaseClient> {
+  if (!environment.supabaseUrl || !environment.supabaseAnonKey) {
+    return Promise.reject(
+      new Error('Supabase não configurado. Confira o .env e rode npm start de novo.'),
+    );
+  }
+  return import('@supabase/supabase-js').then(({ createClient }) =>
+    createClient(environment.supabaseUrl, environment.supabaseAnonKey, {
+      auth: { persistSession: true, autoRefreshToken: true },
+    }),
+  );
+}
+
+/** Ponto de troca do cliente. Nos testes entra um cliente falso no lugar do supabase-js. */
+export const FABRICA_SUPABASE = new InjectionToken<FabricaSupabase>('FABRICA_SUPABASE', {
+  providedIn: 'root',
+  factory: () => criarClienteSupabase,
+});
+
 @Injectable()
 export class SupabaseDadosRepository extends DadosRepository {
+  private readonly fabrica = inject(FABRICA_SUPABASE);
   private cliente?: Promise<SupabaseClient>;
 
-  /**
-   * O supabase-js é carregado sob demanda. Assim o primeiro carregamento da tela
-   * do QR code fica leve, o que conta no 4G do cliente dentro da loja.
-   */
   private obterCliente(): Promise<SupabaseClient> {
-    if (!environment.supabaseUrl || !environment.supabaseAnonKey) {
-      return Promise.reject(
-        new Error('Supabase não configurado. Confira o .env e rode npm start de novo.'),
-      );
-    }
-    this.cliente ??= import('@supabase/supabase-js').then(({ createClient }) =>
-      createClient(environment.supabaseUrl, environment.supabaseAnonKey, {
-        auth: { persistSession: true, autoRefreshToken: true },
-      }),
-    );
+    // Se o carregamento falhar (4G caindo, por exemplo), a falha não fica guardada:
+    // o "Tentar novamente" da tela precisa conseguir carregar de novo.
+    this.cliente ??= this.fabrica().catch((erro: unknown) => {
+      this.cliente = undefined;
+      throw erro;
+    });
     return this.cliente;
   }
 
