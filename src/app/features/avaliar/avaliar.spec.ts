@@ -20,10 +20,20 @@ describe('Tela de avaliação (integração)', () => {
     expect(app.repo.buscarUnidade).toHaveBeenCalledWith(1);
   });
 
+  it('aceita o link curto /avaliar/<unidade>/<canal> e abre a mesma tela', async () => {
+    const app = await abrirApp();
+    await app.ir('/avaliar/1/mesa');
+
+    expect(app.texto()).toContain("Jura's São José do Rio Preto");
+    expect(app.botao('Enviar avaliação')).toBeTruthy();
+    expect(app.repo.buscarUnidade).toHaveBeenCalledWith(1);
+  });
+
   it.each([
     ['unidade que não existe', '/avaliar?u=99&c=mesa'],
     ['unidade desativada', '/avaliar?u=3&c=mesa'],
     ['canal inválido', '/avaliar?u=1&c=balcao'],
+    ['link curto com canal inválido', '/avaliar/1/balcao'],
     ['link sem parâmetros', '/'],
   ])('mostra QR inválido para %s', async (_caso, url) => {
     const app = await abrirApp();
