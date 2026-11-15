@@ -1,0 +1,136 @@
+<div class="app">
+  <app-topo titulo="Avalie seu pedido" [subtitulo]="subtitulo()" />
+  <main>
+    @switch (estado()) {
+      @case ('carregando') {
+        <p class="intro" role="status">Carregando...</p>
+      }
+      @case ('invalido') {
+        <div class="err" role="alert">
+          <app-icone-alerta />
+          <span>Este QR code não é válido. Peça ajuda a um atendente.</span>
+        </div>
+      }
+      @case ('falha') {
+        <div class="err" role="alert">
+          <app-icone-alerta />
+          <span>Não foi possível abrir a avaliação. Verifique sua conexão e tente de novo.</span>
+        </div>
+        <button type="button" class="btn sec espaco-acima" (click)="carregar()">
+          Tentar novamente
+        </button>
+      }
+      @case ('ja-avaliou') {
+        <div class="intro" role="status">
+          Você já avaliou esta unidade agora há pouco. Obrigado!
+        </div>
+        @if (linkGoogle(); as link) {
+          <a class="btn sec" [href]="link" target="_blank" rel="noopener noreferrer"
+            >Avaliar também no Google</a
+          >
+          <p class="note">Opcional. Abre a página da {{ subtitulo() }} no Google.</p>
+        }
+      }
+      @case ('pronto') {
+        <form novalidate (submit)="enviar($event)">
+          <div class="intro">Leva menos de 30 segundos. Não precisa de cadastro.</div>
+
+          @for (grupo of grupos; track grupo.campo) {
+            <fieldset
+              [attr.aria-invalid]="mostrarErro(grupo.campo) ? 'true' : null"
+              [attr.aria-describedby]="mostrarErro(grupo.campo) ? 'erro-' + grupo.campo : null"
+            >
+              <legend>{{ grupo.titulo }} <span class="req" aria-hidden="true">*</span></legend>
+              <div class="scale">
+                @for (nota of notas; track nota) {
+                  @let marcada = campoNota(grupo.campo)().value() === nota;
+                  <label class="n" [class.sel]="marcada">
+                    <input
+                      type="radio"
+                      required
+                      [name]="grupo.campo"
+                      [value]="nota"
+                      [checked]="marcada"
+                      [attr.aria-label]="rotuloNota(nota)"
+                      (change)="escolherNota(grupo.campo, nota)"
+                    />
+                    <span aria-hidden="true">{{ nota }}</span>
+                    @if (marcada) {
+                      <span class="ck"><app-icone-check /></span>
+                    }
+                  </label>
+                }
+              </div>
+              <div class="legend" aria-hidden="true">
+                <span>1 = muito ruim</span><span>5 = muito bom</span>
+              </div>
+              @if (mostrarErro(grupo.campo)) {
+                <div class="err" role="alert" [id]="'erro-' + grupo.campo">
+                  <app-icone-alerta />
+                  <span>{{ mensagemErro(grupo.campo) }}</span>
+                </div>
+              }
+            </fieldset>
+          }
+
+          <div class="field">
+            <label for="comentario">Comentário <span class="opt">(opcional)</span></label>
+            <textarea
+              id="comentario"
+              placeholder="Conte o que achou"
+              [formField]="f.comentario"
+              [attr.aria-invalid]="mostrarErro('comentario') ? 'true' : null"
+              aria-describedby="contador-comentario"
+            ></textarea>
+            <div class="count" id="contador-comentario">
+              {{ f.comentario().value().length }}/{{ limiteComentario }}
+            </div>
+            @if (mostrarErro('comentario')) {
+              <div class="err" role="alert">
+                <app-icone-alerta />
+                <span>{{ mensagemErro('comentario') }}</span>
+              </div>
+            }
+          </div>
+
+          <div class="field">
+            <label for="pedido">Número do pedido <span class="opt">(opcional)</span></label>
+            <input
+              id="pedido"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="Ex.: 4821"
+              [formField]="f.numeroPedido"
+              [attr.aria-invalid]="mostrarErro('numeroPedido') ? 'true' : null"
+              [attr.aria-describedby]="
+                mostrarErro('numeroPedido') ? 'dica-pedido erro-pedido' : 'dica-pedido'
+              "
+            />
+            <div class="hint" id="dica-pedido">Está na sua comanda ou no cupom.</div>
+            @if (mostrarErro('numeroPedido')) {
+              <div class="err" role="alert" id="erro-pedido">
+                <app-icone-alerta />
+                <span>{{ mensagemErro('numeroPedido') }}</span>
+              </div>
+            }
+          </div>
+
+          @if (erroEnvio()) {
+            <div class="err espaco-abaixo" role="alert">
+              <app-icone-alerta />
+              <span>Não foi possível enviar. Verifique sua conexão e tente de novo.</span>
+            </div>
+          }
+          <button type="submit" class="btn" [attr.aria-disabled]="enviando() ? 'true' : null">
+            {{ enviando() ? 'Enviando...' : erroEnvio() ? 'Tentar novamente' : 'Enviar avaliação' }}
+          </button>
+          <p class="note">
+            <span class="req" aria-hidden="true">*</span> Campos obrigatórios. Não pedimos seus
+            dados pessoais.
+          </p>
+        </form>
+      }
+    }
+  </main>
+</div>
