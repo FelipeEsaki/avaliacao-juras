@@ -53,6 +53,11 @@ export class SupabaseDadosRepository extends DadosRepository {
    * do QR code fica leve, o que conta no 4G do cliente dentro da loja.
    */
   private obterCliente(): Promise<SupabaseClient> {
+    if (!environment.supabaseUrl || !environment.supabaseAnonKey) {
+      return Promise.reject(
+        new Error('Supabase não configurado. Confira o .env e rode npm start de novo.'),
+      );
+    }
     this.cliente ??= import('@supabase/supabase-js').then(({ createClient }) =>
       createClient(environment.supabaseUrl, environment.supabaseAnonKey, {
         auth: { persistSession: true, autoRefreshToken: true },

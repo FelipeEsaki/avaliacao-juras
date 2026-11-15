@@ -48,7 +48,8 @@ export class Painel {
       if (atual !== this.requisicao) return;
       this.resumo.set(resumo);
       this.estado.set('pronto');
-    } catch {
+    } catch (erro) {
+      console.error('Falha ao carregar o painel:', erro);
       if (atual === this.requisicao) this.estado.set('erro');
     }
   }

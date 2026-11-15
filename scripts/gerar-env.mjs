@@ -7,9 +7,19 @@ if (existsSync('.env')) {
   process.loadEnvFile('.env');
 }
 
-const supabaseUrl = process.env.SUPABASE_URL ?? '';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY ?? '';
+const supabaseUrl = (process.env.SUPABASE_URL ?? '').trim();
+const supabaseAnonKey = (process.env.SUPABASE_ANON_KEY ?? '').trim();
 const ehDeploy = process.env.CF_PAGES === '1';
+
+// Os valores do .env.example passam na validação de formato, mas apontam para um projeto que
+// não existe. Sem esta checagem o app sobe e a tela só diz "verifique sua conexão".
+if (/seu-projeto/.test(supabaseUrl) || /^cole-/.test(supabaseAnonKey)) {
+  console.error(
+    'O .env ainda está com os valores de exemplo. Troque SUPABASE_URL e SUPABASE_ANON_KEY pelos ' +
+      'do seu projeto (Supabase > Project Settings > API Keys) e rode o comando de novo.',
+  );
+  process.exit(1);
+}
 
 if (ehDeploy && (!supabaseUrl || !supabaseAnonKey)) {
   console.error('Faltam SUPABASE_URL e/ou SUPABASE_ANON_KEY nas variáveis do Cloudflare Pages.');

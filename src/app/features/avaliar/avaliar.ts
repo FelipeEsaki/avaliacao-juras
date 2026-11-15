@@ -106,7 +106,9 @@ export class Avaliar {
       }
       this.unidade.set(unidade);
       this.estado.set(this.avaliacoes.avaliouRecentemente(id) ? 'ja-avaliou' : 'pronto');
-    } catch {
+    } catch (erro) {
+      // O cliente vê a mensagem genérica. O motivo real fica no console para quem for investigar.
+      console.error('Falha ao carregar a unidade do QR code:', erro);
       this.estado.set('falha');
     }
   }
@@ -156,8 +158,9 @@ export class Avaliar {
             linkGoogle: linkGoogleSeguro(unidade),
           };
           await this.router.navigate(['/obrigado'], { state: { resumo } });
-        } catch {
+        } catch (erro) {
           // Os dados digitados continuam na tela para o cliente tentar de novo.
+          console.error('Falha ao enviar a avaliação:', erro);
           this.erroEnvio.set(true);
         } finally {
           this.enviando.set(false);
