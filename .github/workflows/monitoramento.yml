@@ -1,0 +1,48 @@
+name: Monitoramento
+
+# Confere a cada 30 minutos se o site publicado, o banco e o login do gestor estão no ar.
+# Se alguma checagem falhar, a execução fica vermelha, o GitHub manda e-mail para o dono
+# do repositório e uma issue "Sistema fora do ar" é aberta (uma por vez).
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - scripts/monitorar.mjs
+      - .github/workflows/monitoramento.yml
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: monitoramento
+  cancel-in-progress: false
+
+jobs:
+  checar:
+    name: Site, banco e autenticação
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Checa o ambiente publicado
+        run: node scripts/monitorar.mjs https://avaliacao-juras.pages.dev
+
+      - name: Abre issue quando o sistema cai
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXECUCAO: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create monitoramento --color B60205 --description "Alertas do monitoramento" --force
+          if [ -z "$(gh issue list --label monitoramento --state open --json number --jq '.[].number')" ]; then
+            gh issue create --label monitoramento --title "Sistema fora do ar" \
+              --body "A checagem automática falhou em $(TZ=America/Sao_Paulo date '+%d/%m/%Y %H:%M'). Detalhes: $EXECUCAO"
+          fi

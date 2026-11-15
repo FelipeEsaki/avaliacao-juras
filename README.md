@@ -1,5 +1,9 @@
 # Avaliação Jura's
 
+[![CI](https://github.com/FelipeEsaki/avaliacao-juras/actions/workflows/ci.yml/badge.svg)](https://github.com/FelipeEsaki/avaliacao-juras/actions/workflows/ci.yml) [![Monitoramento](https://github.com/FelipeEsaki/avaliacao-juras/actions/workflows/monitoramento.yml/badge.svg)](https://github.com/FelipeEsaki/avaliacao-juras/actions/workflows/monitoramento.yml)
+
+Em produção: https://avaliacao-juras.pages.dev
+
 Sistema de avaliação de satisfação para as lojas do Jura's (São José do Rio Preto, Bady Bassitt, José Bonifácio e Mirassol).
 
 O cliente lê um QR code na mesa, na embalagem ou no delivery, dá uma nota de 1 a 5 para o lanche e outra para o atendimento e, se quiser, deixa um comentário. Não precisa de cadastro e não pedimos dado pessoal. A gerência entra num painel com login e vê a média de cada unidade e a lista de notas baixas (1 ou 2) para agir rápido.
@@ -55,7 +59,8 @@ Regras que ficam no banco, e não só na tela:
 
 - Build command: `npm run build`
 - Output directory: `dist/avaliacao-juras/browser`
-- Variáveis: `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `NODE_VERSION=22`
+- Variáveis: `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `NODE_VERSION=24`
+- Cada merge na `main` publica sozinho. Pull requests ganham um endereço de prévia.
 
 O arquivo `public/_headers` aplica a CSP e os outros cabeçalhos de segurança. A CSP só libera conexão com o próprio site e com o Supabase.
 
@@ -88,6 +93,22 @@ npm run test:cobertura   # mesma coisa com relatório de cobertura em coverage/
 3. build de produção (o orçamento do Angular falha o build acima de 1 MB inicial)
 4. em paralelo, sobe um PostgreSQL 16, roda migrations e seed e executa os testes de segurança e dos links do Google
 
+## Monitoramento
+
+`.github/workflows/monitoramento.yml` roda `scripts/monitorar.mjs` a cada 30 minutos contra o ambiente publicado e confere:
+
+1. a tela do QR code responde com o app Angular e com o cabeçalho CSP
+2. a rota do login devolve o app (fallback de SPA)
+3. o JavaScript publicado tem a URL e a chave publishable do Supabase (o script lê dali, sem guardar segredo)
+4. o banco responde à mesma consulta que a tela do QR faz como cliente anônimo e devolve as 4 unidades ativas
+5. o Supabase Auth, usado no login do gestor, está saudável
+
+Cada checagem tem limite de 10 segundos. Se alguma falhar, a execução fica vermelha (DOWN), o GitHub manda e-mail para o dono do repositório e uma issue "Sistema fora do ar" é aberta com o link da execução. O resumo de cada execução mostra o status e o tempo de resposta de cada item, e o selo no topo deste README mostra o último resultado. A consulta periódica também mantém o projeto do Supabase ativo, já que o plano gratuito pausa depois de 7 dias sem acesso.
+
+Para rodar na mão: `node scripts/monitorar.mjs https://avaliacao-juras.pages.dev`.
+
+O GitHub desativa agendamentos de repositórios públicos depois de 60 dias sem commit. Se isso acontecer, é só reativar o workflow na aba Actions.
+
 ## Estrutura
 
 ```
@@ -97,7 +118,7 @@ src/app/
   shared/      topo e ícones
 src/testing/   repositório em memória e helper dos testes de integração
 supabase/      migrations, seed e testes do banco
-scripts/       geração do environment e dos QR codes
+scripts/       geração do environment, dos QR codes e monitoramento
 ```
 
 ## Decisões e limitações
@@ -107,4 +128,4 @@ scripts/       geração do environment e dos QR codes
 - Página pública de avaliações ficou fora do MVP. Foi sugestão do parceiro na 1ª rodada de validação (deixar as avaliações visíveis, como no TripAdvisor). Publicar o que o cliente escreve exige autorização dele, moderação antes de ir ao ar e proteção contra avaliação falsa, já que não há login para avaliar. Para atender a necessidade agora, o convite do fim do formulário abre direto a tela de avaliação da loja no Google, onde quem procura o Jura's já lê as opiniões. A página própria fica para uma próxima versão.
 - O bloqueio de reenvio (2 horas por unidade no mesmo aparelho) usa localStorage. Evita clique duplo e envio repetido na sequência, mas quem limpar o navegador consegue avaliar de novo. Para o volume das lojas isso foi aceito.
 - As médias são calculadas no navegador a partir das avaliações do período, paginando de 1000 em 1000. Para o volume atual funciona bem. Se crescer muito, o caminho é uma view agregada no banco.
-- O plano gratuito do Supabase pausa o projeto depois de 7 dias sem acesso e não tem backup para download.
+- O plano gratuito do Supabase pausa o projeto depois de 7 dias sem acesso e não tem backup para download. O monitoramento ajuda a manter o projeto ativo, mas backup continua sendo uma limitação.
